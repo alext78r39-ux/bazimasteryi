@@ -25,6 +25,46 @@ pip install bidict lunar_python colorama
 進入到代碼所在目錄。
 
 
+# 圖形介面／單一 EXE
+
+不想裝 Python？可以直接下載 `BaziMaster.exe`，雙擊即開啟圖形介面，
+不需要安裝 Python，也不需要安裝任何依賴庫。
+
+下載後的使用方式：
+
+| 操作 | 說明 |
+| --- | --- |
+| 雙擊 `BaziMaster.exe` | 開啟圖形介面（主控台視窗會自動隱藏） |
+| `BaziMaster.exe 1977 8 11 19 -n` | 直接排盤，結果輸出到畫面 |
+| `BaziMaster.exe --cli` | 命令列互動選單 |
+| `BaziMaster.exe --show-console` | 開圖形介面但保留主控台視窗（除錯用） |
+
+圖形介面分成五個分頁：
+
+1. **八字排盤** — 填出生年月日與時辰，勾選公曆／閏月／女命，按「排盤」
+2. **生肖合婚** — 選生肖，查三合、六合、三會、相沖、相刑、相害、相破
+3. **六爻** — 計算羅喉日時
+4. **直接輸入八字** — 已有四柱文字時直接排盤
+5. **命令列模式** — 直接貼 `bazi.py` 的引數
+
+> **關於 sxtwl**
+> 「六爻」與「直接輸入八字」需要 `sxtwl`。
+> `sxtwl` 是 C extension，在 **Python 3.13 沒有預先編譯的 wheel，原始碼也編譯失敗**，
+> 因此這個版本的 EXE 沒有內含它；點這兩個分頁會顯示說明訊息，
+> 其餘三個功能完全正常使用。
+> 想用完整功能的話，請改用 Python 3.11 建立環境後執行 `pip install sxtwl`，
+> 再重新打包即可（`bazimaster.spec` 會自動偵測並把 sxtwl 一起打包）。
+
+自行從原始碼打包：
+
+```python
+pip install pyinstaller
+python build_exe.py
+```
+
+產物為 `dist\BaziMaster.exe`（單一檔案，約 11.5 MB）。
+
+
 # 使用
 
 - 生肖合婚

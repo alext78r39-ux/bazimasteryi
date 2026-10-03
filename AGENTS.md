@@ -2,6 +2,8 @@
 
 Pure-Python Chinese fortune-telling CLI scripts. **No package metadata, no tests, no CI, no lint/format config, no requirements.txt.** Flat directory; modules import each other by bare name, so everything must be run from this directory.
 
+There is now an **integrated GUI launcher `app.py`** (added on top of the original scripts, which are unchanged). It wraps the same commands — see "Integrated launcher" below.
+
 ## Commands
 
 ```bash
@@ -14,6 +16,11 @@ python bazi.py -b "丁巳 己酉 癸未 壬戌"    # four-pillar reverse lookup 
 python shengxiao.py 虎
 python luohou.py -d "2019 6 16" -n 32      # needs sxtwl
 python convert.py 丁巳己酉 癸未壬戌         # shells out to `python bazi.py -b`
+
+python app.py                               # integrated GUI (tkinter)
+python app.py --cli                         # integrated console menu
+python app.py 1977 8 11 19 -n               # passthrough to bazi.py
+python build_exe.py                         # -> dist/BaziMaster.exe
 ```
 
 Non-obvious flags:
@@ -28,6 +35,18 @@ Non-obvious flags:
 - `sxtwl` is **not installed** in this environment → `luohou.py` and `bazi.py -b` fail at import. `bazi.py` imports it lazily inside the `-b` branch (via `ganzhi.getGZ`), so normal runs work without it.
 - `convert.py` hardcodes `.decode('gbk')` on the child's stdout. That only works on a GBK console — under `PYTHONIOENCODING=utf-8` it raises `UnicodeDecodeError`. It's Windows-only by construction (`python bazi.py`, `shell=True`).
 - The enclosing git repo root is `C:\Users\Nothing User` (the user's home), **not** this project; the project is untracked there. Never run bare `git add -A` / `git commit -a` from this directory.
+
+## Integrated launcher (`app.py`, `bazimaster.spec`, `build_exe.py`)
+
+Added to package the five scripts as one `BaziMaster.exe`. **The original scripts were not refactored** — `app.py` executes them with `runpy.run_path()` under a patched `sys.argv`, capturing stdout. That keeps `bazi.py`'s 2.5k lines and its verified output byte-identical; do not "improve" it by importing functions out of them.
+
+Things to know before editing:
+
+- `app.py` resolves its script directory as `sys._MEIPASS` when frozen, else the directory containing `app.py`, and inserts it into `sys.path`. Under PyInstaller the nine original `.py` files are bundled as **`datas`, not as modules** — PyInstaller cannot see imports made from a data file, so `lunar_python` / `bidict` / `colorama` are pulled in with `collect_all()`.
+- Because `bazi.py` never calls `colorama.init()` (it only does `from colorama import init` at line 12), it emits raw ANSI escapes that no terminal interprets. `app.py` strips them with `ANSI_RE` before showing output in the Tk `Text` widget, and keeps them for `--cli`.
+- **Encoding.** `app.py` calls `SetConsoleOutputCP(65001)` / `SetConsoleCP(65001)` then reconfigures the streams to UTF-8. `stdin` is only reconfigured when the console switch succeeded **or** stdin is a pipe — reconfiguring it unconditionally would break a user typing on a real cp950 console. `sys.stdin.isatty()` decides this.
+- Argument routing: anything that is not `--cli` / `--show-console` / `--version` / `-h` / `--help` is forwarded verbatim to `bazi.py`, because `argparse` swallows `-n` / `-g` / `-b`.
+- `sxtwl` is probed with `importlib.util.find_spec()`; missing tabs show a notice instead of raising. `bazimaster.spec` bundles `sxtwl` only if it is importable at build time.
 
 ## Architecture
 
@@ -59,10 +78,12 @@ PYTHONIOENCODING=utf-8 PYTHONHASHSEED=0 python bazi.py 1977 8 11 19 -n
 ```
 
 - **`PYTHONHASHSEED` must be pinned when diffing output.** The 大運/流年 rows build branch relations in a `set` and `'  '.join(...)` it (`bazi.py:503`, `1829`, `1871`), so token order changes per process. Verified: seeds 0/1/2 produce different 大運 rows for the same chart.
-- README lines 127-338 hold a full sample output for exactly that command, but it is **stale** (it predates the 命宮/胎元/身宮 fields in the header). Treat it as a rough reference only; check the pillars instead — header must read `丁 己 癸 壬` / `巳 酉 未 戌`.
+- README lines 167-408 hold a full sample output for exactly that command, but it is **stale** (it predates the 命宮/胎元/身宮 fields in the header). Treat it as a rough reference only; check the pillars instead — header must read `丁 己 癸 壬` / `巳 酉 未 戌`.
 - Exercise the branches that diverge: `-n` vs default (男), `-g` vs default (農曆), and if touching `-b`, install `sxtwl` first.
 - `luohou.py` without `-d` uses today's date → output is not reproducible; always pass `-d "Y M D"`.
 - `lunar_python` version differences shift 上運時間/節氣 output; pin nothing, just be aware diffs may come from the dependency.
+- `bazi.py -g` echoes the date you passed as 公曆, so the 公曆 line only cross-checks your input; the 農曆 line is what proves `-g` took effect.
+- After touching `app.py`, re-verify with a Tk smoke test that constructs the UI and `invoke()`s each button — a Tk `Text` widget is buildable without a visible display on Windows. Check the 排盤 result contains `丁 己 癸 壬`, that the 生肖 tab matches the selected animal, and that the two `sxtwl` tabs show a notice rather than a traceback. For `--cli`, drive it with `subprocess` and **UTF-8 encoded stdin**: piping Chinese through Windows PowerShell mangles it because `$OutputEncoding` defaults to ASCII, which is indistinguishable from a real `stdin` encoding bug in the app.
 
 ## Known traps (verified — the code is not self-evidently correct)
 
