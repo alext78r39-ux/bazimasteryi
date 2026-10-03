@@ -18,8 +18,8 @@ def check_gan(gan, gans):
     result = ''
     if ten_deities[gan]['合'] in gans:
         result += "合" + ten_deities[gan]['合']
-    if ten_deities[gan]['冲'] in gans:
-        result += "冲" + ten_deities[gan]['冲']
+    if ten_deities[gan]['沖'] in gans:
+        result += "沖" + ten_deities[gan]['沖']
     return result
 
 def yinyang(item):
@@ -33,9 +33,9 @@ def yinyangs(zhis):
     for item in zhis:
         result.append(yinyang(item))
     if set(result) == set('＋'):
-        print("四柱全阳")
+        print("四柱全陽")
     if set(result) == set('－'):
-        print("四柱全阴")
+        print("四柱全陰")
     
     
     

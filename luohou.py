@@ -20,7 +20,7 @@ def get_hou(d, xiazhi, dongzhi):
     ba = lunar.getEightChar()
     yun = ba.getYun(1)
     
-    #　计算甲干相合    
+    #　計算甲干相合    
     gz = cal_day.getHourGZ(10)
     yTG = cal_day.getYearGZ()
     mTG = cal_day.getMonthGZ()
@@ -33,16 +33,16 @@ def get_hou(d, xiazhi, dongzhi):
                 day=Zhi[dTG.dz])
     
     
-    print("公历:", end='')
+    print("公曆:", end='')
     print("{}年{}月{}日".format(d.year, d.month, d.day), end='')
     
-    Lleap = "闰" if cal_day.isLunarLeap() else ""
-    print("\t农:", end='')
+    Lleap = "閏" if cal_day.isLunarLeap() else ""
+    print("\t農:", end='')
     print("{}年{}{}月{}日  ".format(cal_day.getLunarYear(), Lleap,cal_day.getLunarMonth(), cal_day.getLunarDay()), end='')
     print(' ',end='')
     print(''.join([''.join(item) for item in zip(gans, zhis)]), end='')
     
-    print("\t杀:", end='')   
+    print("\t殺:", end='')   
     for item in shi_hous[zhis[2]]:
         print(item + zhi_time[item], end='')
     
@@ -53,7 +53,7 @@ def get_hou(d, xiazhi, dongzhi):
         print(" 年猴:{}年{}日".format(zhis[0], day_ganzhi), end=' ')
     
     if zhis[2] == yue_hous[cal_day.getLunarMonth()]:
-        print(" 月罗:{}日".format(zhis[2]), end=' ')
+        print(" 月羅:{}日".format(zhis[2]), end=' ')
     
     if day_ganzhi in tuple(ji_hous.values()):       
         birthday = d  
@@ -77,9 +77,9 @@ def get_hou(d, xiazhi, dongzhi):
         print(" {}{}".format(item, items[item]), end='') 
     print()
     zeri = ""
-    if zhis.day == zhi_atts[zhis.year]["冲"]:
-        zeri += "\t岁破，大事不宜"
-    elif zhis.day == zhi_atts[zhis.month]["冲"]:
+    if zhis.day == zhi_atts[zhis.year]["沖"]:
+        zeri += "\t歲破，大事不宜"
+    elif zhis.day == zhi_atts[zhis.month]["沖"]:
         zeri += "\t月破，大事不宜" 
     #print(gans.day + zhis.day)
     if gans.day + zhis.day in datouxiu:
@@ -93,15 +93,15 @@ def get_hou(d, xiazhi, dongzhi):
 init(autoreset=True)
 
 jiuxings_dsp = '''
-    一白水星 —— + 贪狼：事业、人缘与桃花
-    二黑土星 —— x 巨门：病符
-    三碧木星 —— x 禄存：口舌是非、诉讼官非
-    四绿木星 —— + 文曲：智慧，学业
-    五黄土星 —— x 廉贞：招灾惹祸甚至病痛；
-    六白金星 —— + 武曲：权力、事业、驿马
-    七赤金星 —— x 破军：盗贼、小人
-    八白土星 —— + 左辅：财星 钱财
-    九紫火星 —— + 右弼：婚姻喜庆'''
+    一白水星 —— + 貪狼：事業、人緣與桃花
+    二黑土星 —— x 巨門：病符
+    三碧木星 —— x 祿存：口舌是非、訴訟官非
+    四綠木星 —— + 文曲：智慧，學業
+    五黃土星 —— x 廉貞：招災惹禍甚至病痛；
+    六白金星 —— + 武曲：權力、事業、驛馬
+    七赤金星 —— x 破軍：盜賊、小人
+    八白土星 —— + 左輔：財星 錢財
+    九紫火星 —— + 右弼：婚姻喜慶'''
 
 mountains = {
     "甲":"", "卯":"", "乙":"", "辰":"", "巽":"", "巳":"", "丙":"", "午":"", "丁":"", "未":"", "坤":"", "申":"", 
@@ -118,15 +118,15 @@ yue_hous = {1:'亥', 2:'子', 3:'丑', 4:'寅', 5:'卯', 6:'辰',
 shi_hous = {'子':'丑午', '丑':'巳亥', '寅':'寅午', '卯':'辰戌', '辰':'巳丑', 
             '巳':'辰戌', '午':'卯申', '未':'午辰', '申':'戌丑', '酉':'子午', 
             '戌':'卯午', '亥':'辰卯'}
-fangweis = ['九紫火', '一白水', '二黑土', '三碧木', '四绿木', '五黄土', '六白金', '七赤金', '八白土', ]
+fangweis = ['九紫火', '一白水', '二黑土', '三碧木', '四綠木', '五黃土', '六白金', '七赤金', '八白土', ]
 zheng_jiuxings = {
-    1:  '八白土', 2:'七赤金', 3:'六白金', 4: '五黄土', 5:'四绿木', 6:'三碧木',  7: '二黑土', 8:'一白水', 9:'九紫火',  10: '八白土', 11:'七赤金', 12:'六白金', 
+    1:  '八白土', 2:'七赤金', 3:'六白金', 4: '五黃土', 5:'四綠木', 6:'三碧木',  7: '二黑土', 8:'一白水', 9:'九紫火',  10: '八白土', 11:'七赤金', 12:'六白金', 
 }
 sheng_jiuxings = {
-    1:  '二黑土', 2:'一白水', 3:'九紫火', 4: '八白土', 5:'七赤金', 6:'六白金',  7: '五黄土', 8:'四绿木', 9:'三碧木',  10: '二黑土', 11:'一白水', 12:'九紫火', 
+    1:  '二黑土', 2:'一白水', 3:'九紫火', 4: '八白土', 5:'七赤金', 6:'六白金',  7: '五黃土', 8:'四綠木', 9:'三碧木',  10: '二黑土', 11:'一白水', 12:'九紫火', 
 }
 ku_jiuxings = {
-    1:  '五黄土', 2:'四绿木', 3:'三碧木', 4: '二黑土', 5:'一白水', 6:'九紫火',  7: '八白土', 8:'七赤金', 9:'六白金',  10: '五黄土', 11:'四绿木', 12:'三碧木', 
+    1:  '五黃土', 2:'四綠木', 3:'三碧木', 4: '二黑土', 5:'一白水', 6:'九紫火',  7: '八白土', 8:'七赤金', 9:'六白金',  10: '五黃土', 11:'四綠木', 12:'三碧木', 
 }
 
 zheng_jiuxings_shi = {
@@ -154,13 +154,13 @@ shi_feixings2 = {"子":zheng_jiuxings_shi2, "丑":ku_jiuxings_shi2, "寅":sheng_
 
 Gans = collections.namedtuple("Gans", "year month day")
 Zhis = collections.namedtuple("Zhis", "year month day")
-JiuFeiXing = collections.namedtuple("JiuFeiXing", "中 西北 西 东北 南 北 西南 东 东南")
+JiuFeiXing = collections.namedtuple("JiuFeiXing", "中 西北 西 東北 南 北 西南 東 東南")
 
 
 
 
 description = '''
-# 年罗猴日
+# 年羅猴日
 $ python luohou.py -d "2019 6 16"
 
 '''
@@ -192,11 +192,11 @@ gans = Gans(year=Gan[yTG.tg], month=Gan[mTG.tg],
             day=Gan[dTG.tg])
 zhis = Zhis(year=Zhi[yTG.dz], month=Zhi[mTG.dz], 
             day=Zhi[dTG.dz])
-mountains[zhis.year] += " 太岁"
-mountains[zhi_atts[zhis.year]['冲']] += " 岁破"
+mountains[zhis.year] += " 太歲"
+mountains[zhi_atts[zhis.year]['沖']] += " 歲破"
     
 
-# 计算中央位
+# 計算中央位
 year = d.year
 index = year % 10 + year // 10 % 10
 index = index - 9 if index > 9 else index
@@ -207,37 +207,37 @@ jius = JiuFeiXing(*fangweis[index:], *fangweis[0:index])
 
 print(jiuxings_dsp)
 print('-'*120)
-print("{}年九宫飞星".format(year))
+print("{}年九宮飛星".format(year))
 print('-'*120)
 print("\033[1;36;40m{1:{0}<25s}{2:{0}<25s}{3:{0}<25s}\033[0m".format(
     chr(12288), 
-    "巽 东南：{}".format(jius.东南), 
-    '离   南：{}'.format(jius.南), 
+    "巽 東南：{}".format(jius.東南), 
+    '離   南：{}'.format(jius.南), 
     '坤 西南：{}'.format(jius.西南),))
 print("\033[1;36;40m{1:{0}<25s}{2:{0}<25s}{3:{0}<25s}\033[0m".format(
     chr(12288), 
-    "震   东：{}".format(jius.东), 
+    "震   東：{}".format(jius.東), 
     '  中   央：{}'.format(jius.中), 
-    '    兑   西：{}'.format(jius.西),))
+    '    兌   西：{}'.format(jius.西),))
 print("\033[1;36;40m{1:{0}<25s}{2:{0}<25s}{3:{0}<25s}\033[0m".format(
     chr(12288), 
-    "艮 东北：{}".format(jius.东北), 
+    "艮 東北：{}".format(jius.東北), 
     '坎   北：{}'.format(jius.北), 
     '乾 西北：{}'.format(jius.西北),))
 print('-'*120)
 
-print("月份九宫飞星", end=' ')
+print("月份九宮飛星", end=' ')
 items = month_feixings[Zhi[yTG.dz]]
 for i in range(1,13):
     print(i, items[i], end=' ')
 print()
 year_yas = get_jizhu(Gan[yTG.tg], Zhi[yTG.dz])
-print("太岁压祭主", year_yas)
+print("太歲壓祭主", year_yas)
 day_yas = get_jizhu(Gan[dTG.tg], Zhi[dTG.dz])
-print("日压祭主", day_yas)
+print("日壓祭主", day_yas)
 print('-'*120)
 
-#计算夏至日、冬至日
+#計算夏至日、冬至日
 lunar = Lunar.fromYmd(d.year, d.month, d.day)
 jieqis = lunar.getJieQiTable()
 #start = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
@@ -245,7 +245,7 @@ jieqis = lunar.getJieQiTable()
 #print("雨水", jieqis['雨水'].toFullString())
 #print("谷雨", jieqis['谷雨'].toFullString())
 #print("夏至", jieqis['夏至'].toFullString())
-#print("处暑", jieqis['处暑'].toFullString())
+#print("處暑", jieqis['處暑'].toFullString())
 #print("霜降", jieqis['霜降'].toFullString())
 #print("今年冬至", jieqis['DONG_ZHI'].toFullString())
 xiazhi = datetime.datetime.strptime(' '.join(jieqis['夏至'].toFullString().split(' ')[:2]), "%Y-%m-%d %H:%M:%S")
