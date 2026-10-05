@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Author: bazimaster
+# Author: bazimaster 整合版
 # CreateDate: 2019-2-21
 
 import argparse
 import collections
 import pprint
 import datetime
+import sys
 
 from lunar_python import Lunar, Solar
 from colorama import init
@@ -142,15 +143,35 @@ Zhis = collections.namedtuple("Zhis", "year month day time")
 print("-"*120)
 
 if options.b:
-    import sxtwl
+    # 直接輸入八字：使用者給的是四個兩字干支。先檢查再排盤，因為
+    # days60 / nayins / empties 這些表只收 60 組同陰陽的干支，
+    # 陰陽不配時會直接爆 KeyError而不是給人看得懂的訊息。
+    for _ming, _gz in (('年', options.year), ('月', options.month),
+                       ('日', options.day), ('時', options.time)):
+        if len(_gz) != 2 or _gz[0] not in Gan or _gz[1] not in Zhi:
+            print('{}柱「{}」格式有誤，請輸入兩字干支，例如 丁巳。'.format(_ming, _gz))
+            sys.exit(1)
+        if Gan.index(_gz[0]) % 2 != Zhi.index(_gz[1]) % 2:
+            print('{}柱「{}」的天干與地支陰陽不配（例如 甲丑、乙卯），請重新確認。'.format(_ming, _gz))
+            sys.exit(1)
+
     gans = Gans(year=options.year[0], month=options.month[0], 
                 day=options.day[0],  time=options.time[0])
     zhis = Gans(year=options.year[1], month=options.month[1], 
                 day=options.day[1],  time=options.time[1])
-    jds = sxtwl.siZhu2Year(getGZ(options.year), getGZ(options.month), getGZ(options.day), getGZ(options.time), options.start, int(options.end));
-    for jd in jds:
-        t = sxtwl.JD2DD(jd )
-        print("可能出生時間: python bazi.py -g %d %d %d %d :%d:%d"%(t.Y, t.M, t.D, t.h, t.m, round(t.s)))   
+    # 反推「可能出生時間」需要 sxtwl。四柱本身只是使用者輸入的字串，
+    # 沒有 sxtwl 也能照常排盤，只是少一段提示而已。
+    try:
+        import sxtwl
+    except ImportError:
+        sxtwl = None
+    if sxtwl is None:
+        print("（未安裝 sxtwl，略過「可能出生時間」提示；四柱排盤不受影響）")
+    else:
+        jds = sxtwl.siZhu2Year(getGZ(options.year), getGZ(options.month), getGZ(options.day), getGZ(options.time), options.start, int(options.end));
+        for jd in jds:
+            t = sxtwl.JD2DD(jd )
+            print("可能出生時間: python bazi.py -g %d %d %d %d :%d:%d"%(t.Y, t.M, t.D, t.h, t.m, round(t.s)))
     
 else:
 
@@ -201,6 +222,7 @@ shens2 = gan_shens + zhi_shens2
     
 
 
+# 計算五行分數（依子平真詮常用的藏干權重表）
 
 scores = {"金":0, "木":0, "水":0, "火":0, "土":0}
 gan_scores = {"甲":0, "乙":0, "丙":0, "丁":0, "戊":0, "己":0, "庚":0, "辛":0,
@@ -291,7 +313,7 @@ print('\033[1;36;40m' + ' '.join(list(gans)), ' '*5, ' '.join(list(gan_shens)) +
 
 temps_scores = temps[gans.year] + temps[gans.month] + temps[me] + temps[gans.time] + temps[zhis.year] + temps[zhis.month]*2 + temps[zhis.day] + temps[zhis.time]
 out = str(temps_scores) + " 溼度[-6,6] 拱：" + str(get_gong(zhis))
-print('\033[1;36;40m' + ' '.join(list(zhis)), ' '*5, ' '.join(list(zhi_shens)) + '\033[0m', ' '*3, out, ": 四柱：" + ' '.join([''.join(item) for item in zip(gans, zhis)]),)
+print('\033[1;36;40m' + ' '.join(list(zhis)), ' '*5, ' '.join(list(zhi_shens)) + '\033[0m', ' '*3, out, " 四柱：" + ' '.join([''.join(item) for item in zip(gans, zhis)]),)
 print("-"*120)
 print("{1:{0}^15s}{2:{0}^15s}{3:{0}^15s}{4:{0}^15s}".format(chr(12288), '【年】{}:{}{}{}'.format(temps[gans.year],temps[zhis.year],ten_deities[gans.year].inverse['建'], gan_zhi_he(zhus[0])), 
     '【月】{}:{}{}{}'.format(temps[gans.month],temps[zhis.month], ten_deities[gans.month].inverse['建'], gan_zhi_he(zhus[1])),
@@ -2401,7 +2423,7 @@ print("年份:", zhis[0], "特點：--", zhi_desc[zhis[0]],"\n")
 key = '帝' if Gan.index(me)%2 == 0 else '冠'
 
 if ten_deities[me].inverse[key] in zhis:
-    print("\n羊刃:", me, ten_deities[me].inverse[key])  
+    print("\n羊刃:", me, ten_deities[me].inverse[key])
     if ten_deities[me].inverse['冠']:
         print("羊刃重重又見祿，富貴饒金玉。 官、印相助福相資。")  
     else:
@@ -2514,7 +2536,7 @@ if tianyin[me] in zhis:
     print("天印貴人: 此號天印貴，榮達受皇封", me,  tianyin[me])  
 
 
-short = min(scores, key=scores.get)
+
 
     
     

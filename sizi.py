@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Author: bazimaster
+# Author: bazimaster 整合版
 # CreateDate: 2019-2-21
 
 summarys = {
