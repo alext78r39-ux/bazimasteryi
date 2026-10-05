@@ -25,6 +25,7 @@ SCRIPTS = [
     'convert.py',
     'datas.py',
     'ganzhi.py',
+    'mangpai.py',
     'sizi.py',
     'yue.py',
 ]

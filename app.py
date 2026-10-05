@@ -9,6 +9,7 @@
   1. 八字排盤        bazi.py        （農曆／公曆輸入）
   2. 直接輸入八字    bazi.py -b     （已有四柱文字時直接排盤）
   3. 大運流年圖表    chart.py       （matplotlib 畫大運／流年走勢）
+  4. 盲派暗局做功    mangpai.py     （明局做功、尋藥、飛神、類象、歲運）
 
 排盤邏輯完全沿用原腳本：以 runpy 執行 bazi.py，
 不修改任何命理演算法，也不改動任何輸出文字（含三命通會、窮通寶鑑等引文）。
@@ -38,13 +39,13 @@ import sys
 import traceback
 
 APP_NAME = '八字排盤大師'
-APP_VERSION = '1.2'
+APP_VERSION = '1.3'
 
 # 打包成 onefile 時 PyInstaller 會把資料解到 sys._MEIPASS；未打包則用本檔所在目錄。
 BASE = getattr(sys, '_MEIPASS', None) or os.path.dirname(os.path.abspath(__file__))
 
 SCRIPTS = ('bazi.py', 'common.py', 'datas.py', 'ganzhi.py', 'sizi.py', 'yue.py',
-           'convert.py', 'chart.py')
+           'convert.py', 'chart.py', 'mangpai.py')
 
 # bazi.py 會直接輸出 ANSI 色碼，但從未呼叫 colorama.init()（見 bazi.py:12），
 # 在 Tk 的 Text 元件裡沒有終端機可以解譯，所以顯示前一律剝除。
@@ -522,7 +523,7 @@ def build_gui(settings=None):
         `force=False` 且已經算過同一份資料時，只重畫不同種類的圖，
         不重跑 bazi.py —— 切換 radio 不必等一次排盤。
 
-        缺 matplotlib 時只提示不安裝，不影響其他四個分頁。
+        缺 matplotlib 時只提示不安裝，不影響其他分頁。
         """
         try:
             import chart
@@ -722,30 +723,143 @@ def build_gui(settings=None):
     ttk.Label(foot3, textvariable=chart_meta,
               foreground='#666666').pack(side='right')
 
-    # ---------------- 分頁 4：命令列 ----------------
+    # ---------------- 分頁 4：盲派暗局做功 ----------------
+    #
+    # 這頁跑 mangpai.py，輸入格式刻意跟「直接輸入八字」一致（四柱），
+    # 另外提供出生日期，讓第六步能排大運流年——因為沒有出生日期就沒有
+    # 起運年份，第六步只能列大運干支。
     tab4 = ttk.Frame(nb, padding=8)
-    nb.add(tab4, text='  命令列模式  ')
+    nb.add(tab4, text='  盲派暗局做功  ')
 
-    bar4 = ttk.LabelFrame(tab4, text='bazi.py 引數（例：1977 8 11 19 -n）', padding=8)
-    bar4.pack(fill='x')
-    var_raw = tk.StringVar(value='1977 8 11 19 -n')
-    ttk.Entry(bar4, textvariable=var_raw).pack(side='left', fill='x',
-                                               expand=True, padx=(0, 8))
-    ttk.Button(bar4, text='執行', command=lambda: show(
-        text4, run_script('bazi.py', var_raw.get().split()))).pack(
-        side='left', ipadx=14, ipady=4)
+    top4 = ttk.LabelFrame(tab4, text='輸入（擇一）', padding=8)
+    top4.pack(fill='x')
+
+    var_mp_pillar = tk.StringVar(value='丁巳 己酉 癸未 壬戌')
+    var_mp_year = tk.StringVar(value='1977')
+    var_mp_month = tk.StringVar(value='8')
+    var_mp_day = tk.StringVar(value='11')
+    var_mp_time = tk.StringVar(value='19')
+    var_mp_solar = tk.BooleanVar(value=False)
+    var_mp_leap = tk.BooleanVar(value=False)
+    var_mp_female = tk.BooleanVar(value=False)
+    var_mp_no_xiang = tk.BooleanVar(value=False)
+    var_mp_year_only = tk.StringVar(value='')
 
     out4, text4 = make_output(tab4)
     out4.pack(fill='both', expand=True, pady=8)
     add_buttons(tab4, text4)
 
+    def _mp_extra_flags():
+        flags = []
+        if var_mp_female.get():
+            flags.append('-n')
+        if var_mp_no_xiang.get():
+            flags.append('--不印類象')
+        year = var_mp_year_only.get().strip()
+        if year:
+            if not year.isdigit() or len(year) != 4:
+                raise ValueError('「只看某年」請填四位西元年，例如 2030。')
+            flags += ['--年', year]
+        return flags
+
+    def do_mp_pillar():
+        try:
+            parts = var_mp_pillar.get().split()
+            if len(parts) != 4 or any(len(p) != 2 for p in parts):
+                messagebox.showwarning(
+                    APP_NAME, '請輸入四組兩字柱，例：丁巳 己酉 癸未 壬戌')
+                return
+            # -b 沒有出生日期就沒有起運年份，第六步無從排流年，
+            # 所以「只看某年」在這個模式沒有作用，直接擋掉而不是靜默忽略。
+            if var_mp_year_only.get().strip():
+                messagebox.showwarning(
+                    APP_NAME, '「只看某年」需要出生日期才能排出大運起點，'
+                              '請改用「以日期分析」。')
+                return
+            show(text4, run_script('mangpai.py', ['-b'] + parts + _mp_extra_flags()))
+        except ValueError as exc:
+            messagebox.showwarning(APP_NAME, str(exc))
+        except Exception:
+            show(text4, traceback.format_exc())
+
+    def do_mp_date():
+        try:
+            args = [var_mp_year.get().strip(), var_mp_month.get().strip(),
+                    var_mp_day.get().strip(), var_mp_time.get().strip()]
+            if not all(a.isdigit() for a in args):
+                messagebox.showwarning(APP_NAME, '年、月、日、時請填整數數字。')
+                return
+            flags = _mp_extra_flags()
+            if var_mp_solar.get():
+                flags.append('-g')
+            elif var_mp_leap.get():
+                # -r 只對農曆有意義，勾了公曆就當沒勾，避免送出矛盾引數。
+                flags.append('-r')
+            show(text4, run_script('mangpai.py', args + flags))
+        except ValueError as exc:
+            messagebox.showwarning(APP_NAME, str(exc))
+        except Exception:
+            show(text4, traceback.format_exc())
+
+    row_a = ttk.Frame(top4)
+    row_a.pack(fill='x')
+    ttk.Label(row_a, text='四柱').pack(side='left', padx=(0, 6))
+    ttk.Entry(row_a, textvariable=var_mp_pillar).pack(
+        side='left', fill='x', expand=True, padx=(0, 12))
+    ttk.Button(row_a, text='以四柱分析', command=do_mp_pillar).pack(
+        side='left', ipadx=14, ipady=4)
+
+    row_b = ttk.Frame(top4)
+    row_b.pack(fill='x', pady=(8, 0))
+    ttk.Label(row_b, text='出生年').pack(side='left', padx=(0, 4))
+    ttk.Entry(row_b, textvariable=var_mp_year, width=8).pack(side='left', padx=(0, 12))
+    ttk.Label(row_b, text='月').pack(side='left', padx=(0, 4))
+    ttk.Entry(row_b, textvariable=var_mp_month, width=6).pack(side='left', padx=(0, 12))
+    ttk.Label(row_b, text='日').pack(side='left', padx=(0, 4))
+    ttk.Entry(row_b, textvariable=var_mp_day, width=6).pack(side='left', padx=(0, 12))
+    ttk.Label(row_b, text='時 0-23').pack(side='left', padx=(0, 4))
+    ttk.Entry(row_b, textvariable=var_mp_time, width=6).pack(side='left', padx=(0, 16))
+    ttk.Button(row_b, text='以日期分析', command=do_mp_date).pack(
+        side='left', ipadx=14, ipady=4)
+
+    chk4 = ttk.Frame(top4)
+    chk4.pack(fill='x', pady=(8, 0))
+    ttk.Checkbutton(chk4, text='公曆（不加則為農曆）',
+                     variable=var_mp_solar).pack(side='left')
+    ttk.Checkbutton(chk4, text='閏月（僅農曆）',
+                     variable=var_mp_leap).pack(side='left', padx=(16, 0))
+    ttk.Checkbutton(chk4, text='女命', variable=var_mp_female).pack(
+        side='left', padx=(16, 0))
+    ttk.Checkbutton(chk4, text='不印類象（只留理法與歲運）',
+                    variable=var_mp_no_xiang).pack(side='left', padx=(16, 0))
+    ttk.Label(chk4, text='只看某年（留空＝全排）：',
+              foreground='#555555').pack(side='left', padx=(24, 4))
+    ttk.Entry(chk4, textvariable=var_mp_year_only, width=8).pack(side='left')
+
+    # ---------------- 分頁 5：命令列 ----------------
+    tab5 = ttk.Frame(nb, padding=8)
+    nb.add(tab5, text='  命令列模式  ')
+
+    bar5 = ttk.LabelFrame(tab5, text='bazi.py 引數（例：1977 8 11 19 -n）', padding=8)
+    bar5.pack(fill='x')
+    var_raw = tk.StringVar(value='1977 8 11 19 -n')
+    ttk.Entry(bar5, textvariable=var_raw).pack(side='left', fill='x',
+                                               expand=True, padx=(0, 8))
+    ttk.Button(bar5, text='執行', command=lambda: show(
+        text5, run_script('bazi.py', var_raw.get().split()))).pack(
+        side='left', ipadx=14, ipady=4)
+
+    out5, text5 = make_output(tab5)
+    out5.pack(fill='both', expand=True, pady=8)
+    add_buttons(tab5, text5)
+
     ttk.Label(
-        tab4, text='可用旗標：-g 公曆　-r 閏月（僅農曆）　-n 女命',
+        tab5, text='可用旗標：-g 公曆　-r 閏月（僅農曆）　-n 女命',
         foreground='#555555').pack(anchor='w')
 
-    # ---------------- 分頁 5：管理員設定 ----------------
-    tab5 = ttk.Frame(nb, padding=8)
-    nb.add(tab5, text='  管理員設定  ')
+    # ---------------- 分頁 6：管理員設定 ----------------
+    tab6 = ttk.Frame(nb, padding=8)
+    nb.add(tab6, text='  管理員設定  ')
 
     installed = set(tkfont.families(root))
     preferred = [f for f in MONO_FONTS + UI_FONTS if f in installed]
@@ -803,7 +917,7 @@ def build_gui(settings=None):
                 var_out_size, var_bg, var_fg, var_wrap, var_width, var_height):
         var.trace_add('write', lambda *_: live_apply())
 
-    look = ttk.LabelFrame(tab5, text='外觀', padding=10)
+    look = ttk.LabelFrame(tab6, text='外觀', padding=10)
     look.pack(fill='x', pady=(0, 8))
 
     ttk.Label(look, text='佈景主題').grid(row=0, column=0, sticky='w', pady=4)
@@ -847,7 +961,7 @@ def build_gui(settings=None):
             pass
 
     def pick_color(var):
-        chosen = colorchooser.askcolor(color=var.get(), parent=tab5)[1]
+        chosen = colorchooser.askcolor(color=var.get(), parent=tab6)[1]
         if chosen:
             var.set(chosen)
             for target, btn in swatches:
@@ -861,7 +975,7 @@ def build_gui(settings=None):
     color_row(6, '輸出背景色', var_bg)
     color_row(7, '輸出行色', var_fg)
 
-    win = ttk.LabelFrame(tab5, text='視窗大小', padding=10)
+    win = ttk.LabelFrame(tab6, text='視窗大小', padding=10)
     win.pack(fill='x', pady=(0, 8))
 
     ttk.Label(win, text='寬度').grid(row=0, column=0, sticky='w', pady=4)
@@ -924,24 +1038,24 @@ def build_gui(settings=None):
         if os.path.isdir(folder):
             os.startfile(folder)
 
-    bar4 = ttk.Frame(tab5)
-    bar4.pack(fill='x')
-    ttk.Button(bar4, text='套用並儲存', command=do_save).pack(side='left')
-    ttk.Button(bar4, text='還原預設值', command=do_reset).pack(side='left', padx=6)
-    ttk.Button(bar4, text='重新載入', command=do_reload).pack(side='left')
-    ttk.Button(bar4, text='開啟設定檔位置', command=open_folder).pack(
+    bar6 = ttk.Frame(tab6)
+    bar6.pack(fill='x')
+    ttk.Button(bar6, text='套用並儲存', command=do_save).pack(side='left')
+    ttk.Button(bar6, text='還原預設值', command=do_reset).pack(side='left', padx=6)
+    ttk.Button(bar6, text='重新載入', command=do_reload).pack(side='left')
+    ttk.Button(bar6, text='開啟設定檔位置', command=open_folder).pack(
         side='left', padx=6)
 
-    ttk.Label(tab5, textvariable=var_status, foreground='#666666').pack(
+    ttk.Label(tab6, textvariable=var_status, foreground='#666666').pack(
         anchor='w', pady=(10, 0))
     ttk.Label(
-        tab5, foreground='#8a5a00',
+        tab6, foreground='#8a5a00',
         text='注意：排盤靠全形空格與固定欄寬對齊，'
              '輸出字體請使用等寬中文字型'
              '（新宋體／細明體／DFKai-SB），換成微軟正黑體等比例字型會讓欄位跑掉。'
     ).pack(anchor='w', pady=(4, 0))
     ttk.Label(
-        tab5, foreground='#666666',
+        tab6, foreground='#666666',
         text='提示：改完可切到「八字排盤」分頁看排盤對齊情況；'
              '視窗大小按「套用並儲存」才會套用。'
     ).pack(anchor='w')
@@ -960,9 +1074,10 @@ def build_gui(settings=None):
     m_fun.add_command(label='八字排盤', command=lambda: go(0))
     m_fun.add_command(label='直接輸入八字', command=lambda: go(1))
     m_fun.add_command(label='大運流年圖表', command=lambda: go(2))
-    m_fun.add_command(label='命令列模式', command=lambda: go(3))
+    m_fun.add_command(label='盲派暗局做功', command=lambda: go(3))
+    m_fun.add_command(label='命令列模式', command=lambda: go(4))
     m_fun.add_separator()
-    m_fun.add_command(label='管理員設定', command=lambda: go(4))
+    m_fun.add_command(label='管理員設定', command=lambda: go(5))
     menubar.add_cascade(label='功能', menu=m_fun)
 
     m_help = tk.Menu(menubar, tearoff=0)
@@ -1008,6 +1123,7 @@ def main_cli():
         print('-' * 60)
         print('  1) 八字排盤')
         print('  2) 直接輸入八字')
+        print('  3) 盲派暗局做功')
         print('  q) 離開')
         print('-' * 60)
 
@@ -1044,6 +1160,37 @@ def main_cli():
                 print('請輸入四組兩字柱。')
                 continue
             print(run_script('bazi.py', ['-b'] + pillars, strip_ansi=False))
+
+        elif choice == '3':
+            mode = ask('輸入方式：1 四柱　2 出生日期（直接按 Enter＝1）：')
+            flags = []
+            if ask('是否女命？y/N：').lower().startswith('y'):
+                flags.append('-n')
+            if ask('不印類象？y/N：').lower().startswith('y'):
+                flags.append('--不印類象')
+            year = ask('只看某年（留空＝全排）：')
+            if year and mode != '2':
+                print('「只看某年」需要出生日期才能排出大運起點，已略過。')
+            elif year:
+                flags += ['--年', year]
+            if mode == '2':
+                parts = [ask('出生年　　：'), ask('出生月　　：'),
+                         ask('出生日　　：'), ask('出生時 0-23：')]
+                if not all(p.isdigit() for p in parts):
+                    print('請填整數數字。')
+                    continue
+                if ask('是否公曆？y/N：').lower().startswith('y'):
+                    flags.append('-g')
+                elif ask('是否閏月？y/N：').lower().startswith('y'):
+                    flags.append('-r')
+                print(run_script('mangpai.py', parts + flags, strip_ansi=False))
+            else:
+                pillars = ask('四柱（例：丁巳 己酉 癸未 壬戌）：').split()
+                if len(pillars) != 4 or any(len(p) != 2 for p in pillars):
+                    print('請輸入四組兩字柱。')
+                    continue
+                print(run_script('mangpai.py', ['-b'] + pillars + flags,
+                                 strip_ansi=False))
 
         else:
             print('輸入的選項不正確，請重新選擇。')

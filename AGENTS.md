@@ -2,7 +2,7 @@
 
 Pure-Python Chinese fortune-telling CLI scripts. **No package metadata, no tests, no CI, no lint/format config, no requirements.txt.** Flat directory; modules import each other by bare name, so everything must be run from this directory.
 
-There is now an **integrated GUI launcher `app.py`** (added on top of the original scripts, which are otherwise unchanged) plus a chart module `chart.py`. `app.py` has 5 tabs: 八字排盤 / 直接輸入八字 / 大運流年圖表 / 命令列模式 / 管理員設定. It wraps the same commands — see "Charts" and "Integrated launcher" below.
+There is now an **integrated GUI launcher `app.py`** (added on top of the original scripts, which are otherwise unchanged) plus a chart module `chart.py` and a blind-school module `mangpai.py`. `app.py` has 6 tabs: 八字排盤 / 直接輸入八字 / 大運流年圖表 / 盲派暗局做功 / 命令列模式 / 管理員設定. It wraps the same commands — see "Charts", "Blind school module", and "Integrated launcher" below.
 
 ## Removed modules
 
@@ -62,6 +62,19 @@ The 3rd tab renders the 大運 / 流年 series with matplotlib. Three kinds, swi
 - **`--chart-selftest` exists because GUI failures are invisible in a headless test.** `BaziMaster.exe --chart-selftest [--out DIR]` runs `collect()` + `png_bytes()` for all three kinds and prints byte counts. Accepts the same args as `bazi.py`; `-b` is expected to be *rejected* (exit 0 with「已正確拒絕」). Use it after any spec change — a missing backend or font file only shows up there.
 - `chart.available_cjk_font()` picks from `CJK_FONTS` by intersecting `font_manager.ttflist`; returns `None` if nothing matches, and the figure then gets a red suptitle saying the Chinese will be boxes. `Microsoft JhengHei` resolves on this machine.
 
+## Blind school module (`mangpai.py`, the 盲派暗局做功 tab)
+
+`mangpai.py` implements the seven steps of `盲派八字暗局做功體系.md` V2.0 (明局做功 → 尋藥 → 察飛神 → 定格局 → 類象 → 歲運 → 綜斷). Like `bazi.py` it is a **script** driven by `runpy`, and it reaches the shared model through `from common import *` only — do not re-derive 五行 / 藏干 / 十神 / 合沖刑會 tables inside it.
+
+- It is listed in **both** `app.py`'s `SCRIPTS` and `bazimaster.spec`'s `SCRIPTS`, because the tab runs it with `run_script('mangpai.py', …)` and PyInstaller can only bundle it as `datas`. Adding a new top-level script means editing both lists.
+- **`-b` cannot produce 流年.** Four pillars carry no birth date, hence no 起運年份, so `dayun_sequence()` leaves the year range empty and `render()` skips the 流年 block. This is also why the tab **blocks** 以四柱分析 when 只看某年 is filled in (it would silently do nothing), and why `--年` is ignored by the `--cli` 四柱 path. Don't "fix" this by inventing a 起運 year.
+- **`-r` is only meaningful for 農曆.** `lunar_python` raises a bare `Exception("wrong lunar year … month -N")` when the year has no such leap month; `build_pillars_from_date()` catches it and prints 「該年沒有閏N月」 / 「農曆 … 不存在」 then returns `None`, and `main()` turns that into `sys.exit(1)`. The tab sends `-r` only when 公曆 is unchecked — checking both would send contradictory args.
+- **解藥 tables come from the theory doc, not from 生克 reasoning.** 伏吟 is `KILL[病字]` for all ten stems; 合絆 is `KILL[克者]`, i.e. 甲己→庚, 丙辛→壬, 乙庚→丙, 丁壬→戊, 戊癸→甲 (the doc labels the table 失勢方 but the 解藥 is always the 克者's 殺). Don't "simplify" this back to `KILL[被合者]` — it gets 乙庚 wrong.
+- **地支六合 has no 解藥 in the source doc (2.4 lists only the five 天干 combos).** `find_yao()` therefore *skips* branch 六合 and `render()` prints 「解藥待擴充（10.2），此處不臆造」. That note must print even when other 解神 exist, or the reader assumes the branch 絆 was handled.
+- Branch 伏吟 藥 is derived as `KILL[zhi5_list[zhi][0]]` (主氣) and every such line is labelled 待研究. Same reason: don't present it as sourced.
+- `decide_geju()` ranks 反噬解神 **before** 有效解神 — a strong 藥 that is itself 忌神 (分財破格) breaks the pattern worse than no 藥. Order matters.
+- `liunian_effects()` compares the 流年 against each **伏神**'s 五行, not against the 日主; 「被制」 means the 伏神 制住 the 流年, i.e. the flow year is being attacked.
+
 ## Integrated launcher (`app.py`, `bazimaster.spec`, `build_exe.py`)
 
 Added to package the scripts as one `BaziMaster.exe`. **The original scripts were not refactored** — `app.py` executes them with `runpy.run_path()` under a patched `sys.argv`, capturing stdout. That keeps `bazi.py`'s 2.5k lines and its verified output byte-identical; do not "improve" it by importing functions out of them.
@@ -76,7 +89,7 @@ Things to know before editing:
 
 ## Admin panel (`Settings`, `apply_look`)
 
-The 管理員設定 tab (last of 5) persists appearance to `%APPDATA%\BaziMaster\settings.json` — **not** next to the EXE, because `sys._MEIPASS` is a fresh read-only temp dir on every onefile launch. `app.py --reset-settings` restores defaults without opening Tk.
+The 管理員設定 tab (last of 6) persists appearance to `%APPDATA%\BaziMaster\settings.json` — **not** next to the EXE, because `sys._MEIPASS` is a fresh read-only temp dir on every onefile launch. `app.py --reset-settings` restores defaults without opening Tk.
 
 Non-obvious constraints, all of which cost a debugging round:
 
@@ -127,7 +140,7 @@ Useful invariants when touching the chart layer (asserted in the scratch tests, 
 - Exercise the branches that diverge: `-n` vs default (男), `-g` vs default (農曆), and `-b` (which works **without** `sxtwl`).
 - `lunar_python` version differences shift 上運時間/節氣 output; pin nothing, just be aware diffs may come from the dependency.
 - `bazi.py -g` echoes the date you passed as 公曆, so the 公曆 line only cross-checks your input; the 農曆 line is what proves `-g` took effect.
-- After touching `app.py`, re-verify with a Tk smoke test that constructs the UI and `invoke()`s each button — a Tk `Text` widget is buildable without a visible display on Windows. Buttons must be located **within their own tab**, not by label, because 八字排盤 and 直接輸入八字 both have a 排　盤 button. Check that 排盤 on tab 1 contains `丁 己 癸 壬`, that tab 2 (直接輸入八字) also produces a full chart, that tab 3 (圖表) draws all three kinds, and that 管理員設定 still saves. For `--cli`, drive it with `subprocess` and **UTF-8 encoded stdin**: piping Chinese through Windows PowerShell mangles it because `$OutputEncoding` defaults to ASCII, which is indistinguishable from a real `stdin` encoding bug in the app.
+- After touching `app.py`, re-verify with a Tk smoke test that constructs the UI and `invoke()`s each button — a Tk `Text` widget is buildable without a visible display on Windows. Buttons must be located **within their own tab**, not by label, because 八字排盤 and 直接輸入八字 both have a 排　盤 button. Check that 排盤 on tab 1 contains `丁 己 癸 壬`, that tab 2 (直接輸入八字) also produces a full chart, that tab 3 (圖表) draws all three kinds, that tab 4 (盲派暗局做功) produces output from **both** 以四柱分析 and 以日期分析, and that 管理員設定 still saves. For `--cli`, drive it with `subprocess` and **UTF-8 encoded stdin**: piping Chinese through Windows PowerShell mangles it because `$OutputEncoding` defaults to ASCII, which is indistinguishable from a real `stdin` encoding bug in the app.
 
 ## Known traps (verified — the code is not self-evidently correct)
 
